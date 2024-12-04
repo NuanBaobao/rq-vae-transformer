@@ -73,7 +73,7 @@ class RQVAE(Stage1Model):
 
     def forward(self, xs):
         z_e = self.encode(xs)
-        z_q, quant_loss, code = self.quantizer(z_e)
+        z_q, quant_loss, code = self.quantizer(z_e) # z_q:[B,H,W,D], z_q =  z_e + (z(D) - z_e).detach()
         out = self.decode(z_q)
         return out, quant_loss, code
 
@@ -91,7 +91,7 @@ class RQVAE(Stage1Model):
     @torch.no_grad()
     def get_codes(self, xs):
         z_e = self.encode(xs)
-        _, _, code = self.quantizer(z_e)
+        _, _, code = self.quantizer(z_e) # code: [B, h, w, d]
         return code
 
     @torch.no_grad()
@@ -104,7 +104,7 @@ class RQVAE(Stage1Model):
 
     @torch.no_grad()
     def decode_code(self, code):
-        z_q = self.quantizer.embed_code(code)
+        z_q = self.quantizer.embed_code(code) # z_q:[B,H,W,D]
         decoded = self.decode(z_q)
         return decoded
 

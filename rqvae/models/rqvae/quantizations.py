@@ -320,7 +320,7 @@ class RQBottleneck(nn.Module):
         # spatial resolution can be different in the sampling process
         assert code.shape[-1] == self.code_shape[-1]
         
-        code_slices = torch.chunk(code, chunks=code.shape[-1], dim=-1)
+        code_slices = torch.chunk(code, chunks=code.shape[-1], dim=-1) #List[B, h, w, 1]
 
         if self.shared_codebook:
             embeds = [self.codebooks[0].embed(code_slice) for i, code_slice in enumerate(code_slices)]
@@ -328,8 +328,8 @@ class RQBottleneck(nn.Module):
             embeds = [self.codebooks[i].embed(code_slice) for i, code_slice in enumerate(code_slices)]
 
         if to_latent_shape:
-            embeds = [self.to_latent_shape(embed.squeeze(-2)).unsqueeze(-2) for embed in embeds]
-        embeds = torch.cat(embeds, dim=-2)
+            embeds = [self.to_latent_shape(embed.squeeze(-2)).unsqueeze(-2) for embed in embeds] # List[B, H, W, 1, D]
+        embeds = torch.cat(embeds, dim=-2) # List[B, h, w, 1, embed_dim] or List[B, H, W, 1, D] -> [B, h, w, n_codebooks, embed_dim] or [B, H, W, n_codebooks, D]
         
         return embeds, None
 
@@ -346,7 +346,7 @@ class RQBottleneck(nn.Module):
             embeds (Tensor): quantized feature map
         """
 
-        assert code.shape[1:] == self.code_shape
+        assert code.shape[1:] == self.code_shape #[h, w, d]
         assert code_idx < code.shape[-1]
         
         B, h, w, _ = code.shape
@@ -364,7 +364,7 @@ class RQBottleneck(nn.Module):
         else:
             raise NotImplementedError(f"{decode_type} is not implemented in partial decoding")
 
-        embeds = self.to_latent_shape(embeds)
+        embeds = self.to_latent_shape(embeds) # [B, H, W, D]
 
         return embeds
 
@@ -373,7 +373,7 @@ class RQBottleneck(nn.Module):
 
         x = self.to_code_shape(x)
 
-        residual_feature = x.detach().clone()
+        residual_feature = x.detach().clone() # [B, h, w, embed_dim]
         soft_code_list = []
         code_list = []
 
@@ -381,7 +381,7 @@ class RQBottleneck(nn.Module):
         for i in range(n_codebooks):
             codebook = self.codebooks[i]
             distances = codebook.compute_distances(residual_feature)
-            soft_code = F.softmax(-distances / temp, dim=-1)
+            soft_code = F.softmax(-distances / temp, dim=-1) # [B, h, w, n_embed]
 
             if stochastic:
                 soft_code_flat = soft_code.reshape(-1, soft_code.shape[-1])
@@ -389,12 +389,12 @@ class RQBottleneck(nn.Module):
                 code = code.reshape(*soft_code.shape[:-1])
             else:
                 code = distances.argmin(dim=-1)
-            quants = codebook.embed(code)
+            quants = codebook.embed(code) # [B, h, w]->[B, h, w, embed_dim]
             residual_feature -= quants
 
             code_list.append(code.unsqueeze(-1))
             soft_code_list.append(soft_code.unsqueeze(-2))
 
-        code = torch.cat(code_list, dim=-1)
-        soft_code = torch.cat(soft_code_list, dim=-2)
+        code = torch.cat(code_list, dim=-1) # [B, h, w, n_codebooks]
+        soft_code = torch.cat(soft_code_list, dim=-2) # [B, h, w, n_codebooks, n_embed]
         return soft_code, code

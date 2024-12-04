@@ -20,21 +20,21 @@ class ActNorm(nn.Module):
 
     def initialize(self, input):
         with torch.no_grad():
-            flatten = input.permute(1, 0, 2, 3).contiguous().view(input.shape[1], -1)
+            flatten = input.permute(1, 0, 2, 3).contiguous().view(input.shape[1], -1) # [num_features, batch_size * height * width]
             mean = (
                 flatten.mean(1)
                 .unsqueeze(1)
                 .unsqueeze(2)
                 .unsqueeze(3)
                 .permute(1, 0, 2, 3)
-            )
+            ) # [1, num_features, 1, 1]
             std = (
                 flatten.std(1)
                 .unsqueeze(1)
                 .unsqueeze(2)
                 .unsqueeze(3)
                 .permute(1, 0, 2, 3)
-            )
+            ) # [1, num_features, 1, 1]
 
             self.loc.data.copy_(-mean)
             self.scale.data.copy_(1 / (std + 1e-6))
@@ -60,10 +60,10 @@ class ActNorm(nn.Module):
             h = h.squeeze(-1).squeeze(-1)
 
         if self.logdet:
-            log_abs = torch.log(torch.abs(self.scale))
+            log_abs = torch.log(torch.abs(self.scale)) # [1, num_features, 1, 1]
             logdet = height*width*torch.sum(log_abs)
             logdet = logdet * torch.ones(input.shape[0]).to(input)
-            return h, logdet
+            return h, logdet # logdet: [B,]
 
         return h
 

@@ -19,6 +19,7 @@ We have tested our codes on the environment below
 
 Please run the following command to install the necessary dependencies
 ```bash
+pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 pip install -r requirements.txt
 ```
 
